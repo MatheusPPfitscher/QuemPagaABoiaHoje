@@ -1,5 +1,5 @@
 [Unit]
-Description=Flask Web Application
+Description=Web Application - Quem paga a Boia Hoje?
 After=network.target
 
 [Service]
