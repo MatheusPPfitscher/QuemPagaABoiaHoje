@@ -5,12 +5,11 @@ import logging
 from dotenv import load_dotenv
 import os
 from models import db, User, Role, Credential, Entry
-from pywebauthn.helpers import (
+from webauthn import (
     generate_registration_options,
     verify_registration_response,
-    generate_authentication_options,
-    verify_authentication_response,
-    base64url_to_bytes
+    options_to_json,
+    base64url_to_bytes,
 )
 
 # Load environment variables
