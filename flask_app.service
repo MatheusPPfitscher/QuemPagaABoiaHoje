@@ -1,0 +1,14 @@
+[Unit]
+Description=Flask Web Application
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/flask_app
+ExecStart=/root/flask_app/venv/bin/gunicorn -w 1 -b 127.0.0.1:5000 app:app
+Restart=always
+Environment="PATH=/root/flask_app/venv/bin"
+Environment="VIRTUAL_ENV=/root/flask_app/venv"
+
+[Install]
+WantedBy=multi-user.target
