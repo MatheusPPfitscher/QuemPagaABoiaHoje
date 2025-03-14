@@ -1,17 +1,17 @@
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify, session
 from flask_security import Security, SQLAlchemyUserDatastore, login_required
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
 import os
 from models import db, User, Role, Credential, Entry
-from webauthn import (
+from pywebauthn.helpers import (
     generate_registration_options,
     verify_registration_response,
     generate_authentication_options,
     verify_authentication_response,
+    base64url_to_bytes
 )
-from webauthn.helpers import base64url_to_bytes
 
 # Load environment variables
 load_dotenv()
