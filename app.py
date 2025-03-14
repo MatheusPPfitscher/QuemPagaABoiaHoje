@@ -1,25 +1,95 @@
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory
-import sqlite3
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify
+from flask_security import Security, SQLAlchemyUserDatastore, login_required
 from datetime import datetime
 import logging
+from dotenv import load_dotenv
+import os
+from models import db, User, Role, Credential, Entry
+from webauthn import (
+    generate_registration_options,
+    verify_registration_response,
+    generate_authentication_options,
+    verify_authentication_response,
+)
+from webauthn.helpers import base64url_to_bytes
 
-
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
-logging.basicConfig(filename='app.log', level=logging.INFO)
-# Initialize SQLite database
-conn = sqlite3.connect('database.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('''
-    CREATE TABLE IF NOT EXISTS entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        buyer TEXT NOT NULL,
-        type TEXT NOT NULL,
-        value REAL NOT NULL
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SECURITY_PASSWORD_SALT'] = os.getenv('SECURITY_PASSWORD_SALT')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SECURITY_REGISTERABLE'] = True
+app.config['SECURITY_RECOVERABLE'] = True
+app.config['SECURITY_CHANGEABLE'] = True
+
+# Initialize extensions
+db.init_app(app)
+user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+security = Security(app, user_datastore)
+
+# Initialize database
+with app.app_context():
+    db.create_all()
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('register.html')
+    
+    registration_password = request.form.get('registration_password')
+    if registration_password != os.getenv('REGISTRATION_PASSWORD'):
+        return jsonify({'error': 'Invalid registration password'}), 401
+
+    email = request.form.get('email')
+    if user_datastore.find_user(email=email):
+        return jsonify({'error': 'User already exists'}), 400
+
+    # Create registration options
+    options = generate_registration_options(
+        rp_id=request.host.split(':')[0],
+        rp_name="Quem Paga a Boia Hoje?",
+        user_id=email,
+        user_name=email
     )
-''')
-conn.commit()
+    
+    # Store options in session for verification
+    session['registration_options'] = options
+    
+    return jsonify(options)
+
+@app.route('/verify-registration', methods=['POST'])
+def verify_registration():
+    data = request.get_json()
+    
+    try:
+        verification = verify_registration_response(
+            credential=data,
+            expected_challenge=session['registration_options']['challenge'],
+            expected_origin=f"https://{request.host}",
+            expected_rp_id=request.host.split(':')[0]
+        )
+        
+        user = user_datastore.create_user(
+            email=session['registration_options']['user']['id'],
+            active=True
+        )
+        
+        credential = Credential(
+            user=user,
+            credential_id=verification.credential_id,
+            public_key=verification.credential_public_key,
+            sign_count=verification.sign_count
+        )
+        
+        db.session.add(credential)
+        db.session.commit()
+        
+        return jsonify({'status': 'success'})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 @app.route('/favicon.png')
 def favicon():
