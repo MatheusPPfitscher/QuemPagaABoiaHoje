@@ -105,45 +105,42 @@ def index():
         # Ensure the date is in YYYY-MM-DD format
         date = datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d')
         
-        # Insert data into SQLite
-        c.execute('''
-            INSERT INTO entries (date, buyer, type, value) 
-            VALUES (?, ?, ?, ?)
-        ''', (date, buyer, entry_type, value))
-        conn.commit()
+        # Create new entry using SQLAlchemy
+        new_entry = Entry(
+            date=date,
+            buyer=buyer,
+            type=entry_type,
+            value=value
+        )
+        db.session.add(new_entry)
+        db.session.commit()
         
         # Redirect to prevent form resubmission
         return redirect(url_for('index'))
     
     # Fetch the latest entry for each type based on date
-    c.execute('''
-        SELECT buyer, date, value, type FROM entries 
-        WHERE type = 'Dinner' 
-        ORDER BY date DESC 
-        LIMIT 1
-    ''')
-    last_dinner = c.fetchone()
+    last_dinner = Entry.query.filter_by(type='Dinner')\
+        .order_by(Entry.date.desc())\
+        .first()
     
-    c.execute('''
-        SELECT buyer, date, value, type FROM entries 
-        WHERE type = 'Lunch' 
-        ORDER BY date DESC 
-        LIMIT 1
-    ''')
-    last_lunch = c.fetchone()
+    last_lunch = Entry.query.filter_by(type='Lunch')\
+        .order_by(Entry.date.desc())\
+        .first()
 
     # Fetch the last 10 entries sorted by date
-    c.execute('''
-        SELECT buyer, date, type FROM entries 
-        ORDER BY date DESC 
-        LIMIT 10
-    ''')
-    last_10_entries = c.fetchall()
+    last_10_entries = Entry.query\
+        .order_by(Entry.date.desc())\
+        .limit(10)\
+        .all()
 
     # Pass current date to the template in YYYY-MM-DD format
     current_date = datetime.now().strftime('%Y-%m-%d')
     
-    return render_template('index.html', last_dinner=last_dinner, last_lunch=last_lunch, current_date=current_date, last_10_entries=last_10_entries)
+    return render_template('index.html', 
+                         last_dinner=last_dinner, 
+                         last_lunch=last_lunch, 
+                         current_date=current_date, 
+                         last_10_entries=last_10_entries)
 
 if __name__ == '__main__':
     app.run(host='::', port=5000)
