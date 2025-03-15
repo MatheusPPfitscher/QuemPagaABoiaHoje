@@ -1,8 +1,10 @@
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify, session
+# -*- coding: utf-8 -*-
+from flask import Flask, request, Response, render_template, redirect, url_for, send_from_directory, jsonify, session
 from flask_security import Security, SQLAlchemyUserDatastore, auth_required
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+import json
 from models import db, User, Role, Credential, Entry
 from webauthn import (
     generate_registration_options,
@@ -14,6 +16,7 @@ from webauthn import (
 load_dotenv()
 
 app = Flask(__name__)
+app.config['DEBUG'] = True
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SECURITY_PASSWORD_SALT'] = os.getenv('SECURITY_PASSWORD_SALT')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
@@ -32,8 +35,6 @@ with app.app_context():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # print(request)
-    # print(request.host)
     if request.method == 'GET':
         return render_template('register.html')
     else:
@@ -44,19 +45,31 @@ def register():
         email = request.form.get('email')
         if user_datastore.find_user(email=email):
             return jsonify({'error': 'User already exists'}), 400
-        print("Creating options")
+        # print("Creating options")
         # Create registration options
         options = generate_registration_options(
             rp_id=request.host.split(',')[0],
             rp_name="Quem Paga a Boia Hoje?",
             user_name=email
     )
-    
     # print("Storing options")
-    session['registration_options'] = options
-    # print("Returning options")
-    print(options_to_json(options))
-    return (options_to_json(options))
+    session['registration_options'] = options_to_json(options)
+    # print("Original options")
+    # print(options)
+    # print("Options to json")
+    # print(options_to_json(options))
+    jsonStrForResponse = options_to_json(options)
+    # print(jsonStrForResponse)
+    # print("Type of jsonStrForResponse")
+    # print(type(jsonStrForResponse))
+    # ReqResponse = jsonify(jsonStrForResponse)
+    ReqResponse = Response(response=jsonStrForResponse, content_type='application/json')
+    # print("Content of Response object")
+    # print(ReqResponse.__dict__)
+    # print("type of Response object")
+    # print(type(ReqResponse))
+    # print("Before sending response")
+    return ReqResponse
 
 
 @app.route('/verify-registration', methods=['POST'])
@@ -91,7 +104,6 @@ def verify_registration():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 400
-        # return jsonify({'error': 'Exception cabulosa'})
 
 @app.route('/favicon.png')
 def favicon():
