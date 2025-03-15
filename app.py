@@ -32,6 +32,7 @@ with app.app_context():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    print(request)
     if request.method == 'GET':
         return render_template('register.html')
     else:
@@ -53,7 +54,7 @@ def register():
     # Store options in session for verification
     session['registration_options'] = options
     print(options_to_json(options))
-    return jsonify(options_to_json(options)), 200
+    return options_to_json(options), 200
 
 @app.route('/verify-registration', methods=['POST'])
 def verify_registration():
