@@ -1,15 +1,12 @@
 from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify, session
-from flask_security import Security, SQLAlchemyUserDatastore, login_required
+from flask_security import Security, SQLAlchemyUserDatastore
 from datetime import datetime
-import logging
 from dotenv import load_dotenv
 import os
 from models import db, User, Role, Credential, Entry
 from webauthn import (
     generate_registration_options,
     verify_registration_response,
-    options_to_json,
-    base64url_to_bytes,
 )
 
 # Load environment variables
@@ -19,9 +16,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SECURITY_PASSWORD_SALT'] = os.getenv('SECURITY_PASSWORD_SALT')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-app.config['SECURITY_REGISTERABLE'] = True
-app.config['SECURITY_RECOVERABLE'] = True
-app.config['SECURITY_CHANGEABLE'] = True
+app.config['SECURITY_REGISTERABLE'] = False
+app.config['SECURITY_RECOVERABLE'] = False
+app.config['SECURITY_CHANGEABLE'] = False
 
 # Initialize extensions
 db.init_app(app)
@@ -36,21 +33,21 @@ with app.app_context():
 def register():
     if request.method == 'GET':
         return render_template('register.html')
-    
-    registration_password = request.form.get('registration_password')
-    if registration_password != os.getenv('REGISTRATION_PASSWORD'):
-        return jsonify({'error': 'Invalid registration password'}), 401
+    else:
+        registration_password = request.form.get('registration_password')
+        if registration_password != os.getenv('REGISTRATION_PASSWORD'):
+            return jsonify({'error': 'Invalid registration password'}), 401
 
-    email = request.form.get('email')
-    if user_datastore.find_user(email=email):
-        return jsonify({'error': 'User already exists'}), 400
+        email = request.form.get('email')
+        if user_datastore.find_user(email=email):
+            return jsonify({'error': 'User already exists'}), 400
 
-    # Create registration options
-    options = generate_registration_options(
-        rp_id=request.host.split(':')[0],
-        rp_name="Quem Paga a Boia Hoje?",
-        user_id=email,
-        user_name=email
+        # Create registration options
+        options = generate_registration_options(
+            rp_id=request.host.split(':')[0],
+            rp_name="Quem Paga a Boia Hoje?",
+            user_id=email,
+            user_name=email
     )
     
     # Store options in session for verification
@@ -95,6 +92,7 @@ def favicon():
     return send_from_directory('static', 'favicon.png', mimetype='image/png')
 
 @app.route('/', methods=['GET', 'POST'])
+@auth_required()
 def index():
     if request.method == 'POST':
         date = request.form['date']
