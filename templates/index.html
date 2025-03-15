@@ -40,11 +40,11 @@
             <h2 class="text-xl font-bold mt-8">Last Entries</h2>
             <div class="mt-4">
                 <h3 class="text-lg font-medium">Last Dinner</h3>
-                <p class="text-gray-700">{{ last_dinner }}</p>
+                <p class="text-gray-700">{{ last_dinner.date }}{{ last_dinner.buyer }}</p>
             </div>
             <div class="mt-4">
                 <h3 class="text-lg font-medium">Last Lunch</h3>
-                <p class="text-gray-700">{{ last_lunch }}</p>
+                <p class="text-gray-700">{{ last_lunch.date }} {{ last_lunch.buyer }}</p>
             </div>
         </div>
         <div class="w-full max-w-md ml-8">
@@ -60,9 +60,9 @@
                 <tbody>
                     {% for entry in last_10_entries %}
                     <tr>
-                        <td class="border px-4 py-2">{{ entry[0] }}</td>
-                        <td class="border px-4 py-2">{{ entry[1] }}</td>
-                        <td class="border px-4 py-2">{{ entry[2] }}</td>
+                        <td class="border px-4 py-2">{{ entry.date }}</td>
+                        <td class="border px-4 py-2">{{ entry.buyer }}</td>
+                        <td class="border px-4 py-2">{{ entry.value }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
