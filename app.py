@@ -53,10 +53,11 @@ def register():
     # Store options in session for verification
     session['registration_options'] = options
     print(options_to_json(options))
-    return options_to_json(options)
+    return jsonify(options_to_json(options))
 
 @app.route('/verify-registration', methods=['POST'])
 def verify_registration():
+    print("Seria Aqui o problema?")
     data = request.get_json()
     
     try:
