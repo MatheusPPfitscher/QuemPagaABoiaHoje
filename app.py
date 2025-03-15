@@ -53,11 +53,11 @@ def register():
     # Store options in session for verification
     session['registration_options'] = options
     print(options_to_json(options))
-    return jsonify(options_to_json(options))
+    return jsonify(options_to_json(options)), 200
 
 @app.route('/verify-registration', methods=['POST'])
 def verify_registration():
-    print("Seria Aqui o problema?")
+    print(request.data)
     data = request.get_json()
     
     try:
@@ -86,7 +86,8 @@ def verify_registration():
         return jsonify({'status': 'success'})
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        # return jsonify({'error': str(e)}), 400
+        return jsonify({'error': 'Exception cabulosa'}), 400
 
 @app.route('/favicon.png')
 def favicon():
