@@ -10,6 +10,7 @@ from webauthn import (
     generate_registration_options,
     verify_registration_response,
     options_to_json,
+    base64url_to_bytes
 )
 
 # Load environment variables
@@ -20,9 +21,7 @@ app.config['DEBUG'] = True
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SECURITY_PASSWORD_SALT'] = os.getenv('SECURITY_PASSWORD_SALT')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-# app.config['SECURITY_REGISTERABLE'] = False
-# app.config['SECURITY_RECOVERABLE'] = False
-# app.config['SECURITY_CHANGEABLE'] = False
+app.config['SECURITY_WEBAUTHN'] = True
 
 # Initialize extensions
 db.init_app(app)
@@ -41,65 +40,50 @@ def register():
         registration_password = request.form.get('registration_password')
         if registration_password != os.getenv('REGISTRATION_PASSWORD'):
             return jsonify({'error': 'Invalid registration password'}), 401
-
         email = request.form.get('email')
         if user_datastore.find_user(email=email):
             return jsonify({'error': 'User already exists'}), 400
-        # print("Creating options")
-        # Create registration options
         options = generate_registration_options(
             rp_id=request.host.split(',')[0],
             rp_name="Quem Paga a Boia Hoje?",
             user_name=email
     )
-    # print("Storing options")
-    session['registration_options'] = options_to_json(options)
-    # print("Original options")
-    # print(options)
-    # print("Options to json")
-    # print(options_to_json(options))
-    jsonStrForResponse = options_to_json(options)
-    # print(jsonStrForResponse)
-    # print("Type of jsonStrForResponse")
-    # print(type(jsonStrForResponse))
-    # ReqResponse = jsonify(jsonStrForResponse)
-    ReqResponse = Response(response=jsonStrForResponse, content_type='application/json')
-    # print("Content of Response object")
-    # print(ReqResponse.__dict__)
-    # print("type of Response object")
-    # print(type(ReqResponse))
-    # print("Before sending response")
-    return ReqResponse
-
+    json_options = options_to_json(options)
+    session['registration_options'] = json_options
+    return Response(response=json_options, content_type='application/json', status=200)
 
 @app.route('/verify-registration', methods=['POST'])
 def verify_registration():
-    print("Verifing registration")
     data = request.get_json()
-    
+    session_data_dict = json.loads(session['registration_options'])
+    print(f"Host: https://{request.host.split(',')[0]}")
+    print(f"rp_id: {request.host.split(',')[0]}")
+
+    print(f"Expected Challange: {session_data_dict['challenge']}")
     try:
         verification = verify_registration_response(
             credential=data,
-            expected_challenge=session['registration_options']['challenge'],
-            expected_origin=f"https://{request.host}",
+            expected_challenge=base64url_to_bytes(session_data_dict['challenge']),
+            expected_origin=f"https://{request.host.split(',')[0]}",
             expected_rp_id=request.host.split(',')[0]
         )
-        
+        print("Verification")
+        print(verification)
         user = user_datastore.create_user(
-            email=session['registration_options']['user']['id'],
+            email=session_data_dict['user']['id'],
             active=True
         )
-        
+        print("User created")
         credential = Credential(
             user=user,
             credential_id=verification.credential_id,
             public_key=verification.credential_public_key,
             sign_count=verification.sign_count
         )
-        
+        print("Credential created")
         db.session.add(credential)
         db.session.commit()
-        
+        print("Credential added to session")
         return jsonify({'status': 'success'})
     
     except Exception as e:
