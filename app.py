@@ -56,7 +56,7 @@ def register():
     session['registration_options'] = options
     # print("Returning options")
     print(options_to_json(options))
-    return options_to_json(options)
+    return (options_to_json(options))
 
 
 @app.route('/verify-registration', methods=['POST'])

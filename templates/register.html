@@ -32,6 +32,7 @@
             e.preventDefault();
             
             const formData = new FormData(e.target);
+            console.log(formData)
             const response = await fetch('/register', {
                 method: 'POST',
                 body: formData
@@ -44,7 +45,7 @@
             }
             
             const options = await response.json();
-            
+            console.log(options)
             try {
                 const attestation = await SimpleWebAuthnBrowser.startRegistration(options);
                 
@@ -57,7 +58,7 @@
                 });
                 
                 const verification = await verificationResp.json();
-                
+                console.log(verification)
                 if (verification.status === 'success') {
                     window.location.href = '/';
                 } else {
