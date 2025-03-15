@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, request, Response, render_template, redirect, url_for, send_from_directory, jsonify, session
-from flask_security import Security, SQLAlchemyUserDatastore, auth_required
+from flask_security import Security, SQLAlchemyUserDatastore, WebauthnUtil, auth_required
 from datetime import datetime
 from dotenv import load_dotenv
 import os
@@ -17,7 +17,6 @@ from webauthn import (
 load_dotenv()
 
 app = Flask(__name__)
-app.config['DEBUG'] = True
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SECURITY_PASSWORD_SALT'] = os.getenv('SECURITY_PASSWORD_SALT')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
@@ -25,7 +24,7 @@ app.config['SECURITY_WEBAUTHN'] = True
 
 # Initialize extensions
 db.init_app(app)
-user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+user_datastore = SQLAlchemyUserDatastore(db, User, Role, Credential)
 security = Security(app, user_datastore)
 
 # Initialize database
@@ -56,10 +55,6 @@ def register():
 def verify_registration():
     data = request.get_json()
     session_data_dict = json.loads(session['registration_options'])
-    print(f"Host: https://{request.host.split(',')[0]}")
-    print(f"rp_id: {request.host.split(',')[0]}")
-
-    print(f"Expected Challange: {session_data_dict['challenge']}")
     try:
         verification = verify_registration_response(
             credential=data,
@@ -67,8 +62,6 @@ def verify_registration():
             expected_origin=f"https://{request.host.split(',')[0]}",
             expected_rp_id=request.host.split(',')[0]
         )
-        print("Verification")
-        print(verification)
         user = user_datastore.create_user(
             email=session_data_dict['user']['id'],
             active=True
@@ -80,10 +73,8 @@ def verify_registration():
             public_key=verification.credential_public_key,
             sign_count=verification.sign_count
         )
-        print("Credential created")
         db.session.add(credential)
         db.session.commit()
-        print("Credential added to session")
         return jsonify({'status': 'success'})
     
     except Exception as e:
@@ -94,7 +85,7 @@ def favicon():
     return send_from_directory('static', 'favicon.png', mimetype='image/png')
 
 @app.route('/', methods=['GET', 'POST'])
-@auth_required()
+@auth_required('session')
 def index():
     if request.method == 'POST':
         date = request.form['date']
