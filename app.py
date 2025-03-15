@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify, session
-from flask_security import Security, SQLAlchemyUserDatastore
+from flask_security import Security, SQLAlchemyUserDatastore, auth_required
 from datetime import datetime
 from dotenv import load_dotenv
 import os
@@ -7,6 +7,7 @@ from models import db, User, Role, Credential, Entry
 from webauthn import (
     generate_registration_options,
     verify_registration_response,
+    options_to_json,
 )
 
 # Load environment variables
@@ -46,14 +47,13 @@ def register():
         options = generate_registration_options(
             rp_id=request.host.split(':')[0],
             rp_name="Quem Paga a Boia Hoje?",
-            user_id=email,
             user_name=email
     )
     
     # Store options in session for verification
     session['registration_options'] = options
-    
-    return jsonify(options)
+    print(options_to_json(options))
+    return options_to_json(options)
 
 @app.route('/verify-registration', methods=['POST'])
 def verify_registration():
