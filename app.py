@@ -17,9 +17,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SECURITY_PASSWORD_SALT'] = os.getenv('SECURITY_PASSWORD_SALT')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-app.config['SECURITY_REGISTERABLE'] = False
-app.config['SECURITY_RECOVERABLE'] = False
-app.config['SECURITY_CHANGEABLE'] = False
+# app.config['SECURITY_REGISTERABLE'] = False
+# app.config['SECURITY_RECOVERABLE'] = False
+# app.config['SECURITY_CHANGEABLE'] = False
 
 # Initialize extensions
 db.init_app(app)
@@ -32,7 +32,8 @@ with app.app_context():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    print(request)
+    # print(request)
+    # print(request.host)
     if request.method == 'GET':
         return render_template('register.html')
     else:
@@ -43,22 +44,24 @@ def register():
         email = request.form.get('email')
         if user_datastore.find_user(email=email):
             return jsonify({'error': 'User already exists'}), 400
-
+        print("Creating options")
         # Create registration options
         options = generate_registration_options(
-            rp_id=request.host.split(':')[0],
+            rp_id=request.host.split(',')[0],
             rp_name="Quem Paga a Boia Hoje?",
             user_name=email
     )
     
-    # Store options in session for verification
+    # print("Storing options")
     session['registration_options'] = options
+    # print("Returning options")
     print(options_to_json(options))
-    return options_to_json(options), 200
+    return options_to_json(options)
+
 
 @app.route('/verify-registration', methods=['POST'])
 def verify_registration():
-    print(request.data)
+    print("Verifing registration")
     data = request.get_json()
     
     try:
@@ -66,7 +69,7 @@ def verify_registration():
             credential=data,
             expected_challenge=session['registration_options']['challenge'],
             expected_origin=f"https://{request.host}",
-            expected_rp_id=request.host.split(':')[0]
+            expected_rp_id=request.host.split(',')[0]
         )
         
         user = user_datastore.create_user(
@@ -87,8 +90,8 @@ def verify_registration():
         return jsonify({'status': 'success'})
     
     except Exception as e:
-        # return jsonify({'error': str(e)}), 400
-        return jsonify({'error': 'Exception cabulosa'}), 400
+        return jsonify({'error': str(e)}), 400
+        # return jsonify({'error': 'Exception cabulosa'})
 
 @app.route('/favicon.png')
 def favicon():
